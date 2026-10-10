@@ -32,7 +32,7 @@ try:
             tuned_color = chess.WHITE if game_index % 2 == 0 else chess.BLACK
             game.headers["White"] = "tuned" if tuned_color else "baseline"
             game.headers["Black"] = "baseline" if tuned_color else "tuned"
-            node = game
+            node = game.end()  # from_board() already includes the opening moves
             for ply in range(args.max_plies):
                 if board.is_game_over(claim_draw=True):
                     break
