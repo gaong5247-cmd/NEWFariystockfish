@@ -1,47 +1,59 @@
-name: Import Fairy-Stockfish 14 baseline
+name: Bootstrap Fairy 14 + Stockfish 19 sources
 
 on:
   workflow_dispatch:
     inputs:
       upstream_tag:
-        description: Official Fairy-Stockfish upstream tag
-        required: true
+        description: Official Fairy-Stockfish base tag
         type: choice
-        default: fairy_sf_14
+        required: true
+        default: fairy_sf_14_0_1_xq
         options:
           - fairy_sf_14
           - fairy_sf_14_0_1_xq
+  push:
+    branches: [main]
+    paths:
+      - .github/BOOTSTRAP
 
 permissions:
   contents: write
 
+concurrency:
+  group: bootstrap-fairy-sf19
+  cancel-in-progress: false
+
 jobs:
-  import:
+  bootstrap:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout destination
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true
-      - name: Import official upstream source without overwriting existing engine
+      - name: Fetch pinned upstream release sources
         env:
-          SOURCE_TAG: ${{ inputs.upstream_tag }}
+          FAIRY_TAG: ${{ inputs.upstream_tag || 'fairy_sf_14_0_1_xq' }}
         run: |
           set -euo pipefail
-          if [ -e src/search.cpp ] || [ -e src/position.cpp ]; then
-            echo "::error::Engine sources already present. Refusing to overwrite."
+          if [ -e src/search.cpp ] || [ -e vendor/stockfish19/src/search.cpp ]; then
+            echo "::error::Source trees already exist; manual integration required. No overwrite."
             exit 1
           fi
-          git clone --depth 1 --branch "$SOURCE_TAG" https://github.com/fairy-stockfish/Fairy-Stockfish.git /tmp/fairy-upstream
-          test -f /tmp/fairy-upstream/src/search.cpp
-          test -f /tmp/fairy-upstream/Copying.txt
-          rsync -a --exclude='.git/' --exclude='.github/' --exclude='README.md' /tmp/fairy-upstream/ ./
+          git clone --depth 1 --branch "$FAIRY_TAG" https://github.com/fairy-stockfish/Fairy-Stockfish.git /tmp/fairy
+          git clone --depth 1 --branch sf_19 https://github.com/official-stockfish/Stockfish.git /tmp/sf19
+          test -f /tmp/fairy/src/search.cpp
+          test -f /tmp/fairy/Copying.txt
+          test -f /tmp/sf19/src/search.cpp
+          test -f /tmp/sf19/Copying.txt
+          mkdir -p vendor/stockfish19
+          rsync -a --exclude='.git/' --exclude='.github/' --exclude='README.md' /tmp/fairy/ ./
+          rsync -a --exclude='.git/' --exclude='.github/' /tmp/sf19/ vendor/stockfish19/
+          printf 'Fairy base: %s\nStockfish reference: sf_19\n' "$FAIRY_TAG" > UPSTREAM-VERSIONS.txt
+      - name: Commit pinned engine sources
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          if git diff --cached --quiet; then
-            echo "No files to import"
-          else
-            git commit -m "Import upstream Fairy-Stockfish $SOURCE_TAG baseline"
-            git push
-          fi
+          git diff --cached --quiet && exit 0
+          git commit -m "Bootstrap Fairy-Stockfish baseline and Stockfish 19 reference"
+          git push
