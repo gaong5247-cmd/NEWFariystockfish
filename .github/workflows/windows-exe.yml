@@ -1,0 +1,72 @@
+name: Windows EXE dual engine package
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows-exe.yml'
+permissions:
+  contents: read
+jobs:
+  windows-exe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Windows cross compiler
+        run: sudo apt-get update -qq && sudo apt-get install -y g++-mingw-w64-x86-64-posix zip
+      - name: Build Fairy EXE with large board support
+        run: make -C src -j2 build ARCH=x86-64 COMP=mingw largeboards=yes NNUE_EMBEDDING_OFF=yes
+      - name: Build official SF19 EXE
+        run: make -C vendor/stockfish19/src -j2 build ARCH=x86-64 COMP=mingw
+      - name: Download verified SF19 NNUE
+        run: |
+          set -euo pipefail
+          mkdir -p networks
+          f=nn-1a298aa575a0.nnue
+          curl -fL --retry 4 -o "networks/$f" "https://tests.stockfishchess.org/api/nn/$f"
+          sha=$(sha256sum "networks/$f" | cut -c1-12)
+          test "$sha" = "1a298aa575a0"
+      - name: Package Windows binaries
+        run: |
+          set -euo pipefail
+          d=dist/NEWFairy-SF19-Windows-x64
+          mkdir -p "$d/bin" "$d/networks" "$d/tools"
+          cp src/stockfish.exe "$d/bin/Fairy-Stockfish.exe"
+          cp vendor/stockfish19/src/stockfish.exe "$d/bin/Stockfish19.exe"
+          cp networks/nn-1a298aa575a0.nnue "$d/networks/"
+          cp tools/dual_nnue_uci.py "$d/tools/"
+          cp Copying.txt "$d/FAIRY-LICENSE.txt"
+          cp vendor/stockfish19/Copying.txt "$d/SF19-LICENSE.txt"
+          cat > "$d/Start-Dual-NNUE.bat" <<'EOF'
+          @echo off
+          cd /d "%~dp0"
+          set "FAIRY_ENGINE=%CD%\bin\Fairy-Stockfish.exe"
+          set "SF19_ENGINE=%CD%\bin\Stockfish19.exe"
+          set "SF19_NET=%CD%\networks\nn-1a298aa575a0.nnue"
+          py -3 tools\dual_nnue_uci.py
+          pause
+          EOF
+          cat > "$d/README.txt" <<'EOF'
+          Windows x64 experimental dual-engine package.
+          bin/Fairy-Stockfish.exe supports Fairy variants and their legacy evaluator.
+          bin/Stockfish19.exe runs official SF19 chess search with official SFNNv16 weights.
+          Start-Dual-NNUE.bat selects between these engines with Python 3 installed.
+          This is NOT a single C++ Fairy executable with native SFNNv16 integration.
+          Fairy variant-specific NNUE files are NOT included; classical evaluation remains available.
+          When using Fairy-Stockfish.exe directly with no external net, set Use NNUE to false.
+          EOF
+          (cd dist && zip -qr NEWFairy-SF19-Windows-x64.zip NEWFairy-SF19-Windows-x64)
+          sha256sum dist/NEWFairy-SF19-Windows-x64.zip > dist/SHA256SUMS
+      - name: Verify EXE file headers
+        run: |
+          file dist/NEWFairy-SF19-Windows-x64/bin/*.exe
+          file dist/NEWFairy-SF19-Windows-x64/bin/*.exe | grep -c 'PE32+ executable' | grep -x 2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NEWFairy-SF19-Windows-x64-EXE
+          path: |
+            dist/NEWFairy-SF19-Windows-x64.zip
+            dist/SHA256SUMS
+          retention-days: 30
+          if-no-files-found: error
