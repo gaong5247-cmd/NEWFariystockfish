@@ -29,7 +29,7 @@ class Proxy:
         self.backend = "Fairy"
         self.variant = "chess"
         self.fairy_net = None
-        self.started = False
+        self.handshaking = True
         self.engine = None
         self.events = queue.Queue()
         self.generation = 0
@@ -40,6 +40,7 @@ class Proxy:
     def start(self):
         if self.backend == "Stockfish19" and self.variant != "chess":
             raise RuntimeError("Stockfish 19 NNUE supports orthodox chess only")
+        self.handshaking = True
         self.stop()
         self.engine = spawn(self.paths[self.backend])
         self.generation += 1
@@ -63,6 +64,7 @@ class Proxy:
         self.send("isready")
         self.until("readyok")
         self.send(self.position)
+        self.handshaking = False
 
     def until(self, target):
         import time
@@ -130,8 +132,10 @@ class Proxy:
                 self.send(line)
             return True
         if line == "isready":
+            self.handshaking = True
             self.send(line)
             self.until("readyok")
+            self.handshaking = False
             print("readyok", flush=True)
             return True
         if line.startswith("position "):
