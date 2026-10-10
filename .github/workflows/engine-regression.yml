@@ -1,0 +1,34 @@
+name: Build and variant regression baseline
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'vendor/stockfish19/**'
+      - 'tests/**'
+      - '.github/workflows/engine-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fairy-variant-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Fairy without embedded network
+        run: |
+          make -C src -j2 build ARCH=x86-64 NNUE_EMBEDDING_OFF=yes
+      - name: Run variant protocol smoke tests
+        run: python3 tests/variant_smoke.py src/stockfish
+  sf19-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build official Stockfish 19 reference
+        run: |
+          make -C vendor/stockfish19/src -j2 build ARCH=x86-64
+      - name: Check reference binary boots
+        run: |
+          python3 tests/uci_smoke.py vendor/stockfish19/src/stockfish chess
