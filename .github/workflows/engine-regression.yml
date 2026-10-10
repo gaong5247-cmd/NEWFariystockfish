@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Fairy without embedded network
         run: |
-          make -C src -j2 build ARCH=x86-64 NNUE_EMBEDDING_OFF=yes
+          make -C src -j2 build ARCH=x86-64 NNUE_EMBEDDING_OFF=yes largeboards=yes
       - name: Run variant protocol smoke tests
         run: python3 tests/variant_smoke.py src/stockfish
       - name: Install chess protocol test library
