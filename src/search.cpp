@@ -155,7 +155,9 @@ namespace {
 void Search::init() {
 
   for (int i = 1; i < MAX_MOVES; ++i)
-      Reductions[i] = int(21.9 * std::log(i));
+      // Stockfish 19 (sf_19/src/search.cpp): 2872 / 128 logarithmic LMR scale.
+      // The Fairy-specific reduction correction is retained above to handle variants.
+      Reductions[i] = int((2872.0 / 128.0) * std::log(i));
 }
 
 
