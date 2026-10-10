@@ -35,6 +35,7 @@ class Proxy:
         self.generation = 0
         self.position = "position startpos"
         self.options = {"Threads": "1", "Hash": "16"}
+        self.fairy_use_nnue = False
         self.start()
 
     def start(self):
@@ -59,6 +60,7 @@ class Proxy:
             self.send(f"setoption name {k} value {v}")
         if self.backend == "Fairy":
             self.send(f"setoption name UCI_Variant value {self.variant}")
+            self.send(f"setoption name Use NNUE value {str(self.fairy_use_nnue).lower()}")
             if self.fairy_net:
                 self.send(f"setoption name EvalFile value {self.fairy_net}")
         else:
@@ -103,6 +105,7 @@ class Proxy:
             print("option name NNUEBackend type combo default Fairy var Fairy var Stockfish19", flush=True)
             print("option name UCI_Variant type string default chess", flush=True)
             print("option name FairyEvalFile type string default <empty>", flush=True)
+            print("option name Use NNUE type check default false", flush=True)
             print("option name Threads type spin default 1 min 1 max 512", flush=True)
             print("option name Hash type spin default 16 min 1 max 33554432", flush=True)
             print("uciok", flush=True)
@@ -125,6 +128,10 @@ class Proxy:
                     self.variant = value
                     self.position = "position startpos"
                     self.start()
+            elif name == "Use NNUE":
+                self.fairy_use_nnue = value.lower() in ("true", "1", "yes")
+                if self.backend == "Fairy":
+                    self.send(line)
             elif name == "FairyEvalFile":
                 self.fairy_net = value if value != "<empty>" else None
                 if self.backend == "Fairy":
