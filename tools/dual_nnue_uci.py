@@ -47,7 +47,11 @@ class Proxy:
         generation = self.generation
         def pump():
             for line in self.engine.stdout:
-                self.events.put((generation, line.rstrip("\n")))
+                output = line.rstrip("\n")
+                if generation == self.generation and not self.handshaking:
+                    print(output, flush=True)
+                else:
+                    self.events.put((generation, output))
         threading.Thread(target=pump, daemon=True).start()
         self.send("uci")
         self.until("uciok")
