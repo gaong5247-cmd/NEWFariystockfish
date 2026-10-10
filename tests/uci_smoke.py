@@ -5,7 +5,7 @@ import sys
 import threading
 import queue
 
-def check_engine(path, variant):
+def check_engine(path, variant, sf19_tuning=False):
     process = subprocess.Popen([path], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT, text=True, bufsize=1)
     messages = queue.Queue()
@@ -28,6 +28,8 @@ def check_engine(path, variant):
         send("uci")
         until(lambda s: s == "uciok")
         send("setoption name Threads value 1")
+        if sf19_tuning:
+            send("setoption name SF19 Search Tuning value true")
         send("setoption name Use NNUE value false") if variant != "sf19" else None
         if variant not in ("sf19", "chess"):
             send(f"setoption name UCI_Variant value {variant}")
