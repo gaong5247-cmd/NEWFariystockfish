@@ -1620,7 +1620,11 @@ moves_loop: // When in check, search starts from here
         if (PvNode && bestValue > alpha)
             alpha = bestValue;
 
-        futilityBase = bestValue + 155;
+        // SF19 uses a 306-unit quiet-search futility base margin.
+        // Keep Fairy's 155 margin for all non-orthodox variants and by default.
+        futilityBase = bestValue + (
+            std::string(Options["UCI_Variant"]) == "chess"
+            && bool(Options["SF19 Search Tuning"]) ? 306 : 155);
     }
 
     const PieceToHistory* contHist[] = { (ss-1)->continuationHistory, (ss-2)->continuationHistory,
