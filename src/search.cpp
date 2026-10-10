@@ -683,6 +683,7 @@ namespace {
     Depth extension, newDepth;
     Value bestValue, value, ttValue, eval, maxValue, probCutBeta;
     bool givesCheck, improving, didLMR, priorCapture;
+    bool sf19Orthodox = false; // Initialized before all goto moves_loop branches
     bool captureOrPromotion, doFullDepthSearch, moveCountPruning,
          ttCapture, singularQuietLMR;
     Piece movedPiece;
@@ -977,8 +978,9 @@ namespace {
 
     // SF19's orthodox-chess ProbCut bound. Fairy's specialized variant
     // margins are kept for all non-standard variants.
-    const bool sf19Orthodox = std::string(Options["UCI_Variant"]) == "chess"
-                          && bool(Options["SF19 Search Tuning"]);
+    // The expression is not a declaration: earlier goto paths may reach moves_loop.
+    sf19Orthodox = std::string(Options["UCI_Variant"]) == "chess"
+                && bool(Options["SF19 Search Tuning"]);
     probCutBeta = sf19Orthodox
         ? beta + 241 - 64 * improving
         : beta + (209 + 20 * !!pos.capture_the_flag_piece() + 50 * pos.captures_to_hand())
