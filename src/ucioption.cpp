@@ -199,6 +199,7 @@ void init(OptionsMap& o) {
   o["SyzygyProbeDepth"]      << Option(1, 1, 100);
   o["Syzygy50MoveRule"]      << Option(true);
   o["SyzygyProbeLimit"]      << Option(7, 0, 7);
+  o["SF19 Search Tuning"]      << Option(false); // Experimental: orthodox-chess ProbCut only
   o["Use NNUE"]              << Option(true, on_use_NNUE);
 #ifndef NNUE_EMBEDDING_OFF
   o["EvalFile"]              << Option((std::string(EvalFileDefaultName) + UCI::SepChar + EvalFile2DefaultName).c_str(), on_eval_file);
