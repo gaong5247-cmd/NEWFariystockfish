@@ -1,0 +1,31 @@
+name: Dual NNUE UCI frontend test
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/dual_nnue_uci.py'
+      - 'tests/dual_nnue_smoke.py'
+      - '.github/workflows/dual-nnue.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dual-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Fairy and Stockfish 19
+        run: |
+          make -C src -j2 build ARCH=x86-64 NNUE_EMBEDDING_OFF=yes largeboards=yes
+          make -C vendor/stockfish19/src -j2 build ARCH=x86-64
+      - name: Download and verify SF19 network
+        run: |
+          set -euo pipefail
+          mkdir -p networks
+          f=nn-1a298aa575a0.nnue
+          curl -fL --retry 4 -o "networks/$f" "https://tests.stockfishchess.org/api/nn/$f"
+          digest="$(sha256sum "networks/$f" | cut -d' ' -f1)"
+          test "${digest:0:12}" = "1a298aa575a0"
+      - name: Check dual backend live UCI search
+        run: python3 tests/dual_nnue_smoke.py
