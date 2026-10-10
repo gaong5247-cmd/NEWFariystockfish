@@ -1,0 +1,63 @@
+name: Package experimental dual backend engines
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/package-dual-engines.yml'
+      - 'tools/dual_nnue_uci.py'
+      - 'tests/dual_nnue_smoke.py'
+permissions:
+  contents: read
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build variant-aware Fairy and official SF19
+        run: |
+          set -euo pipefail
+          make -C src -j2 build ARCH=x86-64 NNUE_EMBEDDING_OFF=yes largeboards=yes
+          make -C vendor/stockfish19/src -j2 build ARCH=x86-64
+      - name: Download and hash-verify official SF19 NNUE
+        run: |
+          set -euo pipefail
+          mkdir -p networks
+          file=nn-1a298aa575a0.nnue
+          curl --fail --location --retry 4 -o "networks/$file" "https://tests.stockfishchess.org/api/nn/$file"
+          digest="$(sha256sum "networks/$file" | cut -d' ' -f1)"
+          test "${digest:0:12}" = "1a298aa575a0"
+      - name: Test runtime switches and variant position handling
+        run: |
+          python3 tests/dual_nnue_smoke.py
+          python3 tests/variant_smoke.py src/stockfish
+      - name: Build distributable folder
+        run: |
+          set -euo pipefail
+          mkdir -p dist/NEWFairy-SF19-experimental/bin dist/NEWFairy-SF19-experimental/networks dist/NEWFairy-SF19-experimental/tools
+          cp src/stockfish dist/NEWFairy-SF19-experimental/bin/fairy-stockfish
+          cp vendor/stockfish19/src/stockfish dist/NEWFairy-SF19-experimental/bin/stockfish19
+          cp networks/nn-1a298aa575a0.nnue dist/NEWFairy-SF19-experimental/networks/
+          cp tools/dual_nnue_uci.py dist/NEWFairy-SF19-experimental/tools/
+          cp Copying.txt dist/NEWFairy-SF19-experimental/Copying-Fairy.txt
+          cp vendor/stockfish19/Copying.txt dist/NEWFairy-SF19-experimental/Copying-SF19.txt
+          cat > dist/NEWFairy-SF19-experimental/README.txt <<'EOF'
+          Experimental dual-engine NNUE selector for Linux x86-64.
+          IMPORTANT: NOT a native SFNNv16 evaluator integrated into Fairy search.
+          Fairy mode uses Fairy search + Fairy evaluation.
+          Stockfish19 mode uses the original SF19 search + SFNNv16 evaluation.
+          To launch, use: python3 tools/dual_nnue_uci.py --fairy bin/fairy-stockfish --sf19 bin/stockfish19 --net networks/nn-1a298aa575a0.nnue
+          For Janggi, Xiangqi or Shogi use Fairy mode.
+          A compatible variant-specific Fairy network must be provided separately for Fairy NNUE; fallback classical evaluation can run without it.
+          EOF
+          (cd dist && zip -qr NEWFairy-SF19-experimental-linux-x64.zip NEWFairy-SF19-experimental)
+          sha256sum dist/NEWFairy-SF19-experimental-linux-x64.zip > dist/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NEWFairy-SF19-experimental-linux-x64
+          path: |
+            dist/NEWFairy-SF19-experimental-linux-x64.zip
+            dist/SHA256SUMS
+          retention-days: 30
+          if-no-files-found: error
