@@ -975,7 +975,14 @@ namespace {
         }
     }
 
-    probCutBeta = beta + (209 + 20 * !!pos.capture_the_flag_piece() + 50 * pos.captures_to_hand()) * (1 + pos.check_counting() + pos.extinction_single_piece()) - 44 * improving;
+    // SF19's orthodox-chess ProbCut bound. Fairy's specialized variant
+    // margins are kept for all non-standard variants.
+    const bool sf19Orthodox = std::string(Options["UCI_Variant"]) == "chess"
+                          && bool(Options["SF19 Search Tuning"]);
+    probCutBeta = sf19Orthodox
+        ? beta + 241 - 64 * improving
+        : beta + (209 + 20 * !!pos.capture_the_flag_piece() + 50 * pos.captures_to_hand())
+                      * (1 + pos.check_counting() + pos.extinction_single_piece()) - 44 * improving;
 
     // Step 9. ProbCut (~4 Elo)
     // If we have a good enough capture and a reduced search returns a value
@@ -1052,7 +1059,7 @@ moves_loop: // When in check, search starts from here
     ttCapture = ttMove && pos.capture_or_promotion(ttMove);
 
     // Step 11. A small Probcut idea, when we are in check
-    probCutBeta = beta + 409;
+    probCutBeta = beta + (sf19Orthodox ? 428 : 409);
     if (   ss->inCheck
         && !PvNode
         && depth >= 4
