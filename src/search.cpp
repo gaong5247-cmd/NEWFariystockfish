@@ -72,10 +72,14 @@ namespace {
   }
 
   // Reductions lookup table, initialized at startup
-  int Reductions[MAX_MOVES]; // [depth or moveNumber]
+  int Reductions[MAX_MOVES]; // Fairy 14 baseline
+  int SF19Reductions[MAX_MOVES]; // Stockfish 19 logarithmic scale
 
   Depth reduction(bool i, Depth d, int mn) {
-    int r = Reductions[d] * Reductions[mn];
+    const bool sf19 = std::string(Options["UCI_Variant"]) == "chess"
+                   && bool(Options["SF19 Search Tuning"]);
+    const int* table = sf19 ? SF19Reductions : Reductions;
+    int r = table[d] * table[mn];
     return (r + 534) / 1024 + (!i && r > 904);
   }
 
@@ -155,9 +159,10 @@ namespace {
 void Search::init() {
 
   for (int i = 1; i < MAX_MOVES; ++i)
-      // Stockfish 19 (sf_19/src/search.cpp): 2872 / 128 logarithmic LMR scale.
-      // The Fairy-specific reduction correction is retained above to handle variants.
-      Reductions[i] = int((2872.0 / 128.0) * std::log(i));
+      Reductions[i] = int(21.9 * std::log(i));
+      // SF19 reference uses 2872 / 128. Keep both tables so variants retain
+      // Fairy's tuned baseline unless the orthodox-only experiment is enabled.
+      SF19Reductions[i] = int((2872.0 / 128.0) * std::log(i));
 }
 
 
