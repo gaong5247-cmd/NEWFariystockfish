@@ -1,0 +1,37 @@
+name: Obtain Stockfish 19 NNUE
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  obtain-network:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact official SF19 network and validate digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p networks
+          file=nn-1a298aa575a0.nnue
+          curl --fail --location --retry 4 --retry-delay 3 --connect-timeout 20 \
+            --output "networks/$file" \
+            "https://tests.stockfishchess.org/api/nn/$file"
+          test "$(stat -c%s "networks/$file")" -gt 50000000
+          digest="$(sha256sum "networks/$file" | cut -d' ' -f1)"
+          test "${digest:0:12}" = "1a298aa575a0" || {
+            echo "::error::Downloaded NNUE has unexpected SHA-256 digest: $digest"
+            exit 1
+          }
+          echo "Verified $file sha256=$digest"
+          printf '%s  %s\n' "$digest" "$file" > networks/SHA256SUMS
+      - name: Upload verified network artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stockfish19-sfnnv16-network
+          path: |
+            networks/nn-1a298aa575a0.nnue
+            networks/SHA256SUMS
+          retention-days: 30
+          if-no-files-found: error
