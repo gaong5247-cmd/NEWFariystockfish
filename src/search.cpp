@@ -158,11 +158,12 @@ namespace {
 
 void Search::init() {
 
-  for (int i = 1; i < MAX_MOVES; ++i)
+  for (int i = 1; i < MAX_MOVES; ++i) {
       Reductions[i] = int(21.9 * std::log(i));
       // SF19 reference uses 2872 / 128. Keep both tables so variants retain
       // Fairy's tuned baseline unless the orthodox-only experiment is enabled.
       SF19Reductions[i] = int((2872.0 / 128.0) * std::log(i));
+  }
 }
 
 
