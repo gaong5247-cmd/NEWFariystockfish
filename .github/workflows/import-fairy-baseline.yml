@@ -1,0 +1,47 @@
+name: Import Fairy-Stockfish 14 baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: Official Fairy-Stockfish upstream tag
+        required: true
+        type: choice
+        default: fairy_sf_14
+        options:
+          - fairy_sf_14
+          - fairy_sf_14_0_1_xq
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout destination
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Import official upstream source without overwriting existing engine
+        env:
+          SOURCE_TAG: ${{ inputs.upstream_tag }}
+        run: |
+          set -euo pipefail
+          if [ -e src/search.cpp ] || [ -e src/position.cpp ]; then
+            echo "::error::Engine sources already present. Refusing to overwrite."
+            exit 1
+          fi
+          git clone --depth 1 --branch "$SOURCE_TAG" https://github.com/fairy-stockfish/Fairy-Stockfish.git /tmp/fairy-upstream
+          test -f /tmp/fairy-upstream/src/search.cpp
+          test -f /tmp/fairy-upstream/Copying.txt
+          rsync -a --exclude='.git/' --exclude='.github/' --exclude='README.md' /tmp/fairy-upstream/ ./
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No files to import"
+          else
+            git commit -m "Import upstream Fairy-Stockfish $SOURCE_TAG baseline"
+            git push
+          fi
