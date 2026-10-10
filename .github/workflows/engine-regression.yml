@@ -21,6 +21,17 @@ jobs:
           make -C src -j2 build ARCH=x86-64 NNUE_EMBEDDING_OFF=yes
       - name: Run variant protocol smoke tests
         run: python3 tests/variant_smoke.py src/stockfish
+      - name: Install chess protocol test library
+        run: python3 -m pip install --user chess==1.11.2
+      - name: Run small baseline-vs-SF19-tuning chess matches
+        run: python3 tests/arena_chess.py src/stockfish --games 4 --depth 2 --max-plies 40
+      - name: Save match games as PGN
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fairy-sf19-tuning-arena
+          path: sf19-tuning-smoke.pgn
+          if-no-files-found: ignore
   sf19-reference:
     runs-on: ubuntu-latest
     timeout-minutes: 30
