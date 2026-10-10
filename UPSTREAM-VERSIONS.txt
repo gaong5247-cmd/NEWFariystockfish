@@ -1,0 +1,2 @@
+Fairy base: fairy_sf_14_0_1_xq
+Stockfish reference: sf_19
