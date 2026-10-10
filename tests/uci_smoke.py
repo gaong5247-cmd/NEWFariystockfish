@@ -36,6 +36,14 @@ def check_engine(path, variant, sf19_tuning=False):
         send("isready")
         until(lambda s: s == "readyok")
         send("position startpos")
+        if variant != "sf19":
+            send("d")
+            fen_line = until(lambda line: line.startswith("Fen: "))
+            fen = fen_line.removeprefix("Fen: ").split(" ")[0]
+            standard = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+            if variant in ("janggi", "xiangqi", "shogi") and fen == standard:
+                raise RuntimeError(f"{variant}: variant did not switch away from chess start FEN")
+            print(f"POSITION {variant}: {fen}")
         send("go depth 2")
         move = until(lambda s: s.startswith("bestmove "), timeout=45)
         if move == "bestmove (none)":
