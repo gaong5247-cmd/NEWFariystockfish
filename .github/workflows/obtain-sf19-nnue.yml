@@ -1,6 +1,11 @@
 name: Obtain Stockfish 19 NNUE
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'networks/README.md'
+      - '.github/workflows/obtain-sf19-nnue.yml'
 permissions:
   contents: read
 jobs:
